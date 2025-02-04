@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  rtsp-to-web:
+    build: ./rtsptoweb/
+    container_name: rtsp-to-web
+    restart: always
+    networks:
+      - rtsp-network
+    ports:
+      - "80:80"
+    expose:
+      - "554"
+    volumes:
+      - /home/ubuntu/app/config.json:/config/config.json
+    environment:
+      TZ: ${TZ}
+    env_file:
+      - .env
+
+  rtsp-recorder:
+    build: ./recorder/
+    container_name: recorder
+    restart: always
+    networks:
+      - rtsp-network
+    volumes:
+#      - /home/buffer:/buffer
+#      - /home/crashed:/crashed
+      - /var/log:/var/log
+    environment:
+      RTSP_URL: ${RTSP_URL}
+      TZ: ${TZ}
+      AWS_REGION: ${AWS_REGION}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+    env_file:
+      - .env
+
+networks:
+  rtsp-network:
+    driver: bridge

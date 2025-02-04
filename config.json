@@ -1,0 +1,49 @@
+{
+  "channel_defaults": {},
+  "server": {
+    "debug": true,
+    "http_debug": false,
+    "http_demo": true,
+    "http_dir": "web",
+    "http_login": "demo",
+    "http_password": "demo",
+    "http_port": ":80",
+    "https": false,
+    "https_auto_tls": false,
+    "https_auto_tls_name": "",
+    "https_cert": "server.crt",
+    "https_key": "server.key",
+    "https_port": "",
+    "ice_credential": "",
+    "ice_servers": [
+      "stun:stun.l.google.com:19302"
+    ],
+    "ice_username": "",
+    "log_level": "debug",
+    "rtsp_port": ":554",
+    "token": {
+      "backend": "http://127.0.0.1/test.php",
+      "enable": false
+    },
+    "webrtc_port_max": 0,
+    "webrtc_port_min": 0
+  },
+  "streams": {
+    "id1": {
+      "channels": {
+        "0": {
+          "url": "rtsp://admin:kast70587@95.46.143.157/cam/realmonitor?channel=4\u0026subtype=1"
+        }
+      },
+      "name": "Cam1"
+    },
+	"id2": {
+      "channels": {
+        "0": {
+          "url": "rtsp://admin:kast70587@95.46.143.155/cam/realmonitor?channel=4\u0026subtype=1"
+        }
+      },
+      "name": "Cam2"
+    }
+  }
+}
