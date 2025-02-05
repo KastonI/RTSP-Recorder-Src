@@ -9,14 +9,14 @@ import boto3
 from botocore.exceptions import BotoCoreError, NoCredentialsError
 
 # 🔧 **Настройки**
-CAM_NUMBER = os.getenv("CAM_NUMBER", "1")
+CAM_NUMBER = os.getenv("CAM_NUMBER")
 
 RTSP_URL = f"rtsp://rtsp-to-web:554/id{CAM_NUMBER}/0"
 BUFFER_DIR = f"/buffer/cam{CAM_NUMBER}"
 CRASH_DIR = f"/crashed/cam{CAM_NUMBER}"
 LOG_FILE = f"/var/log/recorder_cam{CAM_NUMBER}.log"
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-S3_UPLOAD_PATH = os.getenv("S3_UPLOAD_PATH", f"crashes/cam{CAM_NUMBER}/")
+S3_UPLOAD_PATH = os.getenv("S3_UPLOAD_PATH", f"crashes/cam{CAM_NUMBER}")
 
 DURATION = int(os.getenv("DURATION", 20))
 MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE", 5))
