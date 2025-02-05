@@ -9,14 +9,14 @@ import boto3
 from botocore.exceptions import BotoCoreError, NoCredentialsError
 
 # 🔧 **Настройки**
-CAM_NUMBER = os.getenv("CAM_NUMBER")
+CAM_NUMBER = os.getenv("CAM_NUMBER", "1")
 
 RTSP_URL = f"rtsp://rtsp-to-web:554/id{CAM_NUMBER}/0"
 BUFFER_DIR = f"/buffer/cam{CAM_NUMBER}"
 CRASH_DIR = f"/crashed/cam{CAM_NUMBER}"
 LOG_FILE = f"/var/log/recorder_cam{CAM_NUMBER}.log"
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-S3_UPLOAD_PATH = os.getenv("S3_UPLOAD_PATH", f"crashes/cam{CAM_NUMBER}")
+S3_UPLOAD_PATH = os.getenv("S3_UPLOAD_PATH", f"crashes/cam{CAM_NUMBER}/")
 
 DURATION = int(os.getenv("DURATION", 20))
 MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE", 5))
@@ -52,6 +52,8 @@ except (BotoCoreError, NoCredentialsError) as e:
 
 # 🚦 Флаг для завершения работы
 running = True
+recording_active = True
+buffer_files = []
 
 # 🔄 **Функция проверки потока**
 def is_rtsp_available():
@@ -119,31 +121,23 @@ def upload_crash_to_s3(file_path):
     except Exception as e:
         logging.error(f"⚠️ Ошибка загрузки в S3: {e}")
 
-# 🛑 **Обработчик завершения**
-def cleanup_and_exit(signal_received, frame):
-    """Функция корректного завершения работы"""
-    global running
-    running = False
-    logging.info("🛑 Остановка записи...")
-
-    if buffer_files:
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
-        merge_videos(buffer_files, merged_file)
-        upload_crash_to_s3(merged_file)
-
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, cleanup_and_exit)
-
 # 🔄 **Основной цикл записи**
-buffer_files = []
-recording_active = True
-
 while running:
     if not is_rtsp_available():
         if recording_active:
-            logging.warning("❌ Поток потерян. Жду восстановления...")
+            logging.warning("❌ Поток потерян. Начинаю обработку краша...")
+
+            # 🔥 Объединение и загрузка файлов в S3
+            if buffer_files:
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
+                merge_videos(buffer_files, merged_file)
+                upload_crash_to_s3(merged_file)
+
+                buffer_files.clear()
+
+            logging.warning("⏳ Ожидание восстановления потока...")
+
         recording_active = False
         time.sleep(CHECK_INTERVAL)
         continue
@@ -169,14 +163,6 @@ while running:
         continue
 
     buffer_files.append(temp_file)
-
-    # 🔄 Если буфер переполнен, объединяем файлы перед загрузкой
-    if len(buffer_files) > MAX_BUFFER_SIZE:
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
-        merge_videos(buffer_files, merged_file)
-        upload_crash_to_s3(merged_file)
-        buffer_files.clear()  # Очистка списка после загрузки
 
     time.sleep(1)
 
