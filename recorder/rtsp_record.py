@@ -39,15 +39,12 @@ logging.basicConfig(
 )
 
 logging.info(f"🎥 Камера {CAM_NUMBER} запущена с RTSP: {RTSP_URL}")
-logging.info(f"📤 Запись будет загружаться в: {S3_UPLOAD_PATH}")
 
 # 🔍 **Настройка AWS S3**
 try:
     session = boto3.Session()
     s3 = session.client("s3")
-    logging.info("✅ AWS S3 клиент инициализирован через IAM Role")
-except (BotoCoreError, NoCredentialsError) as e:
-    logging.error(f"⚠️ Ошибка инициализации AWS S3: {e}")
+except (BotoCoreError, NoCredentialsError):
     s3 = None  # Отключаем S3, если нет доступа
 
 # 🚦 Флаг для завершения работы
@@ -83,43 +80,30 @@ def merge_videos(files, output_file):
         "-c", "copy", "-vsync", "vfr", output_file
     ]
     
-    result = subprocess.run(merge_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(merge_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     if result.returncode == 0:
-        logging.info(f"✅ Видео успешно объединено: {output_file}")
         for file in files:
             os.remove(file)  # Удаляем исходные файлы после слияния
-    else:
-        logging.error(f"❌ Ошибка при объединении файлов. Лог FFmpeg: {result.stderr.decode()}")
 
 # 🛠 **Функция загрузки видеофайлов в S3**
 def upload_crash_to_s3(file_path):
     """Загружает краш-файл в S3 и удаляет после успешной отправки"""
     if not s3 or not S3_BUCKET_NAME:
-        logging.warning("⚠️ S3 не настроен или переменная S3_BUCKET_NAME пустая.")
         return
 
-    if not os.path.exists(file_path):
-        logging.error(f"❌ Ошибка: Файл {file_path} не существует. Пропускаем загрузку.")
-        return
-
-    if os.path.getsize(file_path) == 0:
-        logging.error(f"❌ Ошибка: Файл {file_path} пустой. Пропускаем загрузку.")
+    if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
         return
 
     s3_key = f"{S3_UPLOAD_PATH}/{os.path.basename(file_path)}"
 
     try:
-        logging.info(f"📤 Загружаем {file_path} в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
         s3.upload_file(file_path, S3_BUCKET_NAME, s3_key)
-        logging.info(f"✅ Файл успешно загружен в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
+        os.remove(file_path)  # Удаляем файл после успешной загрузки
+        logging.info(f"🔥 Файл успешно загружен в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
 
-        # Удаляем файл после успешной загрузки
-        os.remove(file_path)
-        logging.info(f"🗑 Локальный файл удалён после загрузки: {file_path}")
-
-    except Exception as e:
-        logging.error(f"⚠️ Ошибка загрузки в S3: {e}")
+    except Exception:
+        pass  # Если загрузка не удалась, файл остается локально
 
 # 🔄 **Основной цикл записи**
 while running:
@@ -136,14 +120,11 @@ while running:
 
                 buffer_files.clear()
 
-            logging.warning("⏳ Ожидание восстановления потока...")
-
         recording_active = False
         time.sleep(CHECK_INTERVAL)
         continue
 
     if not recording_active:
-        logging.info("✅ Поток восстановлен. Возобновляю запись...")
         recording_active = True
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -155,15 +136,9 @@ while running:
         "-c", "copy", temp_file
     ]
 
-    logging.info(f"🎥 Запись видео: {temp_file}")
     process = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    if process.returncode != 0:
-        logging.error("❌ Ошибка записи. Жду восстановления потока...")
-        continue
-
-    buffer_files.append(temp_file)
+    if process.returncode == 0:
+        buffer_files.append(temp_file)
 
     time.sleep(1)
-
-logging.info("🛑 Завершаем процесс RTSP-записи.")
