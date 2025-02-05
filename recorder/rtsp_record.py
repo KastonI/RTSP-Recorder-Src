@@ -5,35 +5,35 @@ import subprocess
 import signal
 import sys
 import logging
-import boto3  # type: ignore
+import boto3
 from botocore.exceptions import BotoCoreError, NoCredentialsError
 
+# 🔧 **Настройки**
 CAM_NUMBER = os.getenv("CAM_NUMBER", "1")
 
-# 🔧 **Конфигурация**
 RTSP_URL = f"rtsp://rtsp-to-web:554/id{CAM_NUMBER}/0"
 BUFFER_DIR = f"/buffer/cam{CAM_NUMBER}"
 CRASH_DIR = f"/crashed/cam{CAM_NUMBER}"
 LOG_FILE = f"/var/log/recorder_cam{CAM_NUMBER}.log"
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-S3_UPLOAD_PATH = f"crashes/cam{CAM_NUMBER}/"
+S3_UPLOAD_PATH = os.getenv("S3_UPLOAD_PATH", f"crashes/cam{CAM_NUMBER}/")
 
 DURATION = int(os.getenv("DURATION", 20))
 MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE", 5))
 CHECK_INTERVAL = 10
 
-# 🔹 Создаем папки, если их нет
+# 📂 Создаём нужные папки
 os.makedirs(BUFFER_DIR, exist_ok=True)
 os.makedirs(CRASH_DIR, exist_ok=True)
 os.makedirs("/var/log", exist_ok=True)
 
-# 🔍 **Настройка логирования**
+# 📜 **Логирование**
 logging.basicConfig(
     level=logging.INFO,
     format=f"[%(asctime)s] [%(levelname)s] [CAM-{CAM_NUMBER}] %(message)s",
     handlers=[
-        logging.FileHandler(LOG_FILE),  # Логи в файл
-        logging.StreamHandler(sys.stdout)  # Вывод в консоль
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler(sys.stdout)
     ],
     force=True
 )
@@ -41,18 +41,17 @@ logging.basicConfig(
 logging.info(f"🎥 Камера {CAM_NUMBER} запущена с RTSP: {RTSP_URL}")
 logging.info(f"📤 Запись будет загружаться в: {S3_UPLOAD_PATH}")
 
-# 🔹 Настройка AWS S3 (без ключей - IAM Role)
+# 🔍 **Настройка AWS S3**
 try:
     session = boto3.Session()
     s3 = session.client("s3")
     logging.info("✅ AWS S3 клиент инициализирован через IAM Role")
 except (BotoCoreError, NoCredentialsError) as e:
     logging.error(f"⚠️ Ошибка инициализации AWS S3: {e}")
-    s3 = None  # Если нет доступа, отключаем S3
+    s3 = None  # Отключаем S3, если нет доступа
 
-# Флаг для корректного завершения работы
+# 🚦 Флаг для завершения работы
 running = True
-
 
 # 🔄 **Функция проверки потока**
 def is_rtsp_available():
@@ -64,44 +63,36 @@ def is_rtsp_available():
     result = subprocess.run(test_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result.returncode == 0
 
-
-# 🔄 **Функция обработки завершения**
-def cleanup_and_exit(signal_received, frame):
-    """Функция корректного завершения работы"""
-    global running
-    running = False
-    logging.info("Остановка записи...")
-
-    if buffer_files:
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
-        merge_videos(buffer_files, merged_file)
-        logging.info(f"📁 Сохранен аварийный файл перед выходом: {merged_file}")
-        upload_crash_to_s3(merged_file)
-
-    for file in buffer_files:
-        os.remove(file)
-
-    sys.exit(0)
-
-
-# 🛠 **Функция склейки видео**
+# 🛠 **Функция слияния видеофайлов**
 def merge_videos(files, output_file):
-    """Объединяет видеофайлы в один"""
+    """Объединяет видеофайлы в один перед загрузкой"""
+    if len(files) == 1:
+        os.rename(files[0], output_file)
+        return
+
     file_list_path = os.path.join(CRASH_DIR, "file_list.txt")
 
     with open(file_list_path, "w") as file_list:
         for file in files:
             file_list.write(f"file '{file}'\n")
 
-    merge_command = ["ffmpeg", "-f", "concat", "-safe", "0", "-i", file_list_path, "-c", "copy", "-vsync", "vfr", output_file]
-    subprocess.run(merge_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    merge_command = [
+        "ffmpeg", "-f", "concat", "-safe", "0", "-i", file_list_path, 
+        "-c", "copy", "-vsync", "vfr", output_file
+    ]
+    
+    result = subprocess.run(merge_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+    if result.returncode == 0:
+        logging.info(f"✅ Видео успешно объединено: {output_file}")
+        for file in files:
+            os.remove(file)  # Удаляем исходные файлы после слияния
+    else:
+        logging.error(f"❌ Ошибка при объединении файлов. Лог FFmpeg: {result.stderr.decode()}")
 
-# 🛠 **Функция загрузки краш-файлов в S3**
-# 🛠 **Функция загрузки краш-файлов в S3**
+# 🛠 **Функция загрузки видеофайлов в S3**
 def upload_crash_to_s3(file_path):
-    """Загружает краш-файл в S3 с отладкой"""
+    """Загружает краш-файл в S3 и удаляет после успешной отправки"""
     if not s3 or not S3_BUCKET_NAME:
         logging.warning("⚠️ S3 не настроен или переменная S3_BUCKET_NAME пустая.")
         return
@@ -114,28 +105,38 @@ def upload_crash_to_s3(file_path):
         logging.error(f"❌ Ошибка: Файл {file_path} пустой. Пропускаем загрузку.")
         return
 
-    try:
-        # Используем полный путь для загрузки
-        s3_key = f"{S3_UPLOAD_PATH}/{os.path.basename(file_path)}"
+    s3_key = f"{S3_UPLOAD_PATH}/{os.path.basename(file_path)}"
 
-        logging.info(f"📤 Подготовка к загрузке файла {file_path} в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
-        
-        # Фактическая загрузка
+    try:
+        logging.info(f"📤 Загружаем {file_path} в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
         s3.upload_file(file_path, S3_BUCKET_NAME, s3_key)
         logging.info(f"✅ Файл успешно загружен в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
 
-        # Удаляем файл после загрузки
+        # Удаляем файл после успешной загрузки
         os.remove(file_path)
         logging.info(f"🗑 Локальный файл удалён после загрузки: {file_path}")
 
     except Exception as e:
-        logging.error(f"⚠️ Ошибка загрузки файла {file_path} в S3: {e}")
+        logging.error(f"⚠️ Ошибка загрузки в S3: {e}")
 
+# 🛑 **Обработчик завершения**
+def cleanup_and_exit(signal_received, frame):
+    """Функция корректного завершения работы"""
+    global running
+    running = False
+    logging.info("🛑 Остановка записи...")
 
-# Регистрируем обработчик Ctrl+C
+    if buffer_files:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
+        merge_videos(buffer_files, merged_file)
+        upload_crash_to_s3(merged_file)
+
+    sys.exit(0)
+
 signal.signal(signal.SIGINT, cleanup_and_exit)
 
-# 🔄 Основной цикл записи
+# 🔄 **Основной цикл записи**
 buffer_files = []
 recording_active = True
 
@@ -143,7 +144,6 @@ while running:
     if not is_rtsp_available():
         if recording_active:
             logging.warning("❌ Поток потерян. Жду восстановления...")
-
         recording_active = False
         time.sleep(CHECK_INTERVAL)
         continue
@@ -162,7 +162,6 @@ while running:
     ]
 
     logging.info(f"🎥 Запись видео: {temp_file}")
-
     process = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     if process.returncode != 0:
@@ -171,9 +170,14 @@ while running:
 
     buffer_files.append(temp_file)
 
+    # 🔄 Если буфер переполнен, объединяем файлы перед загрузкой
     if len(buffer_files) > MAX_BUFFER_SIZE:
-        old_file = buffer_files.pop(0)
-        os.remove(old_file)
-        logging.info(f"🗑 Удален старый файл из кеша: {old_file}")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
+        merge_videos(buffer_files, merged_file)
+        upload_crash_to_s3(merged_file)
+        buffer_files.clear()  # Очистка списка после загрузки
 
     time.sleep(1)
+
+logging.info("🛑 Завершаем процесс RTSP-записи.")
