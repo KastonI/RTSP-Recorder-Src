@@ -32,7 +32,7 @@ services:
       cam_number: "${HOSTNAME##*-}"
     deploy:
       replicas: ${NUM_CAMERAS:-1}
-    command: ["python3", "rtsp_record.py"]"
+    command: ["python3", "rtsp_record.py"]
 
 networks:
   rtsp-network:
