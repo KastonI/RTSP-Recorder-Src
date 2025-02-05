@@ -18,7 +18,7 @@ services:
     env_file:
       - .env
 
-  rtsp-recorder:
+  rtsp-recorder-1:
     build: ./recorder/
     restart: always
     networks:
@@ -29,9 +29,21 @@ services:
       TZ: ${TZ}
       AWS_REGION: ${AWS_REGION}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
-      CAM_NUMBER: "${TASK_SLOT}"
-    deploy:
-      replicas: 2 #${NUM_CAMERAS:-1}
+      CAM_NUMBER: "1"
+    command: ["python3", "rtsp_record.py"]
+
+  rtsp-recorder-2:
+    build: ./recorder/
+    restart: always
+    networks:
+      - rtsp-network
+    volumes:
+      - /var/log:/var/log
+    environment:
+      TZ: ${TZ}
+      AWS_REGION: ${AWS_REGION}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      CAM_NUMBER: "2"
     command: ["python3", "rtsp_record.py"]
 
 networks:
