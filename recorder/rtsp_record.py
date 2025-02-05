@@ -99,9 +99,8 @@ def upload_crash_to_s3(file_path):
 
     try:
         s3.upload_file(file_path, S3_BUCKET_NAME, s3_key)
-        os.remove(file_path)  # Удаляем файл после успешной загрузки
         logging.info(f"🔥 Файл успешно загружен в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
-
+        os.remove(file_path)  # Удаляем файл после успешной загрузки
     except Exception:
         pass  # Если загрузка не удалась, файл остается локально
 
@@ -129,6 +128,8 @@ while running:
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     temp_file = os.path.join(BUFFER_DIR, f"{timestamp}.mp4")
+
+    logging.info(f"🎥 Запись видео: {temp_file}")
 
     command = [
         "ffmpeg", "-rtsp_transport", "tcp",
