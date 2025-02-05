@@ -29,10 +29,11 @@ services:
       TZ: ${TZ}
       AWS_REGION: ${AWS_REGION}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
-      cam_number: "${HOSTNAME##*-}"
     deploy:
-      replicas: ${NUM_CAMERAS:-1}
-    command: ["python3", "rtsp_record.py"]
+      replicas: 2 #${NUM_CAMERAS:-1}
+    command: >
+      sh -c "export cam_number=$(echo $HOSTNAME | awk -F'-' '{print $NF}') &&
+             python3 rtsp_record.py"
 
 networks:
   rtsp-network:
