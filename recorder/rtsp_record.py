@@ -8,10 +8,15 @@ import logging
 import boto3  # type: ignore
 from botocore.exceptions import BotoCoreError, NoCredentialsError
 
-# 🔧 **Конфигурация**
-CAM_NUMBER = os.getenv("cam_number", "1")
+def get_cam_number():
+    """Определяет номер камеры из имени контейнера"""
+    hostname = os.getenv("HOSTNAME", "recorder-1")  # Получаем имя контейнера
+    cam_number = "".join(filter(str.isdigit, hostname))  # Извлекаем номер
+    return cam_number if cam_number else "1"
 
-# 🔧 **Конфигурация с использованием `cam_number`**
+CAM_NUMBER = get_cam_number()
+
+# 🔧 **Конфигурация**
 RTSP_URL = f"rtsp://rtsp-to-web:554/id{CAM_NUMBER}/0"
 BUFFER_DIR = f"/buffer/cam{CAM_NUMBER}"
 CRASH_DIR = f"/crashed/cam{CAM_NUMBER}"
@@ -39,7 +44,8 @@ logging.basicConfig(
     force=True
 )
 
-logging.info("🎥 Логирование настроено. Приложение запущено.")
+logging.info(f"🎥 Камера {CAM_NUMBER} запущена с RTSP: {RTSP_URL}")
+logging.info(f"📤 Запись будет загружаться в: {S3_UPLOAD_PATH}")
 
 # 🔹 Настройка AWS S3 (без ключей - IAM Role)
 try:
@@ -128,17 +134,6 @@ while running:
     if not is_rtsp_available():
         if recording_active:
             logging.warning("❌ Поток потерян. Жду восстановления...")
-            if buffer_files:
-                timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
-                merge_videos(buffer_files, merged_file)
-                logging.info(f"🔥 Сохранен аварийный файл: {merged_file}")
-                upload_crash_to_s3(merged_file)
-
-                for file in buffer_files:
-                    os.remove(file)
-
-                buffer_files.clear()
 
         recording_active = False
         time.sleep(CHECK_INTERVAL)
@@ -171,7 +166,5 @@ while running:
         old_file = buffer_files.pop(0)
         os.remove(old_file)
         logging.info(f"🗑 Удален старый файл из кеша: {old_file}")
-
-    # 🔥 Буферные записи НЕ отправляются в S3!
 
     time.sleep(1)
