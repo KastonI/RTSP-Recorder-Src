@@ -9,12 +9,15 @@ import boto3  # type: ignore
 from botocore.exceptions import BotoCoreError, NoCredentialsError
 
 # 🔧 **Конфигурация**
-RTSP_URL = os.getenv("RTSP_URL", "rtsp://rtsp-to-web:554/id1/0")
-BUFFER_DIR = "/buffer"
-CRASH_DIR = "/crashed"
-LOG_FILE = "/var/log/recorder.log"
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")  # Имя S3-бакета
-S3_UPLOAD_PATH = os.getenv("S3_UPLOAD_PATH", "crashes/cam1/")  # Путь для загрузки краш-файлов в S3
+CAM_NUMBER = os.getenv("cam_number", "1")
+
+# 🔧 **Конфигурация с использованием `cam_number`**
+RTSP_URL = f"rtsp://rtsp-to-web:554/id{CAM_NUMBER}/0"
+BUFFER_DIR = f"/buffer/cam{CAM_NUMBER}"
+CRASH_DIR = f"/crashed/cam{CAM_NUMBER}"
+LOG_FILE = f"/var/log/recorder_cam{CAM_NUMBER}.log"
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+S3_UPLOAD_PATH = os.getenv("S3_UPLOAD_PATH", f"crashes/cam{CAM_NUMBER}/")
 
 DURATION = int(os.getenv("DURATION", 20))
 MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE", 5))
@@ -28,12 +31,12 @@ os.makedirs("/var/log", exist_ok=True)
 # 🔍 **Настройка логирования**
 logging.basicConfig(
     level=logging.INFO,
-    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    format=f"[%(asctime)s] [%(levelname)s] [CAM-{CAM_NUMBER}] %(message)s",
     handlers=[
         logging.FileHandler(LOG_FILE),  # Логи в файл
         logging.StreamHandler(sys.stdout)  # Вывод в консоль
     ],
-    force=True  # Принудительное переопределение обработчиков
+    force=True
 )
 
 logging.info("🎥 Логирование настроено. Приложение запущено.")
