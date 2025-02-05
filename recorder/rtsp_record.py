@@ -117,7 +117,7 @@ def upload_crash_to_s3(file_path):
 # Регистрируем обработчик Ctrl+C
 signal.signal(signal.SIGINT, cleanup_and_exit)
 
-# 🔄 **Основной цикл записи**
+# 🔄 Основной цикл записи
 buffer_files = []
 recording_active = True
 
