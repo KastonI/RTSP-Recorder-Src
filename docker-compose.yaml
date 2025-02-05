@@ -29,6 +29,7 @@ services:
       TZ: ${TZ}
       AWS_REGION: ${AWS_REGION}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      CAM_NUMBER: "${TASK_SLOT}"
     deploy:
       replicas: 2 #${NUM_CAMERAS:-1}
     command: ["python3", "rtsp_record.py"]

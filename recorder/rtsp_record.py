@@ -8,13 +8,7 @@ import logging
 import boto3  # type: ignore
 from botocore.exceptions import BotoCoreError, NoCredentialsError
 
-def get_cam_number():
-    """Определяет номер камеры из имени контейнера"""
-    hostname = os.getenv("HOSTNAME", "recorder-1")  # Получаем имя контейнера
-    cam_number = "".join(filter(str.isdigit, hostname))  # Извлекаем номер
-    return cam_number if cam_number else "1"
-
-CAM_NUMBER = get_cam_number()
+CAM_NUMBER = os.getenv("CAM_NUMBER", "1")
 
 # 🔧 **Конфигурация**
 RTSP_URL = f"rtsp://rtsp-to-web:554/id{CAM_NUMBER}/0"
