@@ -17,7 +17,7 @@ COPY rtsp_record.py .
 # Права на використання
 RUN chmod +x rtsp_record.py
 
-# Вiдкриваємо порт для RTSP
+# Вiдкриваємо порт для RTSP потоку
 EXPOSE 554
 
 CMD ["python3", "rtsp_record.py"]
