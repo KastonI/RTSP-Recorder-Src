@@ -18,14 +18,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      ### 🔍 **Lint Dockerfiles with hadolint**
-      - name: Run hadolint
+      - name: Run Hadolint on all Dockerfiles
         uses: hadolint/hadolint-action@v3.1.0
-
-      - name: Run Hadolint on multiple Dockerfiles
-        run: |
-          hadolint ./recorder/Dockerfile
-          hadolint ./rtsptoweb/Dockerfile
+        with:
+          dockerfile: "**/Dockerfile"  # Проверяет все файлы с именем "Dockerfile"
+          format: "tty"
 
 
       ### 🐍 **Lint Python files with Super-Linter**
