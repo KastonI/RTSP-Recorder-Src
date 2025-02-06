@@ -8,7 +8,7 @@ import logging
 import boto3
 from botocore.exceptions import BotoCoreError, NoCredentialsError
 
-# 🔧 **Настройки**
+# 🔧 Налаштування
 CAM_NUMBER = os.getenv("CAM_NUMBER", "1")
 
 RTSP_URL = f"rtsp://rtsp-to-web:554/id{CAM_NUMBER}/0"
@@ -22,12 +22,12 @@ DURATION = int(os.getenv("DURATION", 20))
 MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE", 5))
 CHECK_INTERVAL = 10
 
-# 📂 Создаём нужные папки
+# 📂 Створюємо необхiднi теки
 os.makedirs(BUFFER_DIR, exist_ok=True)
 os.makedirs(CRASH_DIR, exist_ok=True)
 os.makedirs("/var/log", exist_ok=True)
 
-# 📜 **Логирование**
+# 📜 Логування
 logging.basicConfig(
     level=logging.INFO,
     format=f"[%(asctime)s] [%(levelname)s] [CAM-{CAM_NUMBER}] %(message)s",
@@ -38,23 +38,22 @@ logging.basicConfig(
     force=True
 )
 
-logging.info(f"🎥 Камера {CAM_NUMBER} запущена с RTSP: {RTSP_URL}")
+logging.info(f"🎥 Камера {CAM_NUMBER} працює з RTSP: {RTSP_URL}")
 
-# 🔍 **Настройка AWS S3**
+# 🔍 Налаштування AWS S3
 try:
     session = boto3.Session()
     s3 = session.client("s3")
 except (BotoCoreError, NoCredentialsError):
-    s3 = None  # Отключаем S3, если нет доступа
+    s3 = None  # Вимикаємо S3 якщо не можемо пiдключитись
 
-# 🚦 Флаг для завершения работы
 running = True
 recording_active = True
 buffer_files = []
 
-# 🔄 **Функция проверки потока**
+# 🔄 Перевiрка потоку
 def is_rtsp_available():
-    """Проверяет, доступен ли RTSP-поток"""
+    """Перевiрка чи є доступ до потоку"""
     test_command = [
         "ffmpeg", "-rtsp_transport", "tcp", "-i", RTSP_URL,
         "-t", "1", "-c", "copy", "-f", "null", "-"
@@ -62,9 +61,9 @@ def is_rtsp_available():
     result = subprocess.run(test_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result.returncode == 0
 
-# 🛠 **Функция слияния видеофайлов**
+# 🛠 Функцiя злиття файлiв
 def merge_videos(files, output_file):
-    """Объединяет видеофайлы в один перед загрузкой"""
+    """Обєднання файлiв перед завантаженням в S3"""
     if len(files) == 1:
         os.rename(files[0], output_file)
         return
@@ -84,11 +83,11 @@ def merge_videos(files, output_file):
 
     if result.returncode == 0:
         for file in files:
-            os.remove(file)  # Удаляем исходные файлы после слияния
+            os.remove(file)  # Видаляємо буфернi файли пiсля злиття
 
-# 🛠 **Функция загрузки видеофайлов в S3**
+# 🛠 Вигрузка файлiв в S3
 def upload_crash_to_s3(file_path):
-    """Загружает краш-файл в S3 и удаляет после успешной отправки"""
+    """Завантажуємо краш-файл в S3 i видаляємо файли"""
     if not s3 or not S3_BUCKET_NAME:
         return
 
@@ -99,18 +98,18 @@ def upload_crash_to_s3(file_path):
 
     try:
         s3.upload_file(file_path, S3_BUCKET_NAME, s3_key)
-        logging.info(f"🔥 Файл успешно загружен в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
-        os.remove(file_path)  # Удаляем файл после успешной загрузки
+        logging.info(f"🔥 Файл успiшно завантажено в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
+        os.remove(file_path)  # Видаляємо файл пiсля завантаження
     except Exception:
-        pass  # Если загрузка не удалась, файл остается локально
+        pass  # Залишаємо файл якщо не вигрузився в S3
 
-# 🔄 **Основной цикл записи**
+# 🔄 Основний цикл запису
 while running:
     if not is_rtsp_available():
         if recording_active:
-            logging.warning("❌ Поток потерян. Начинаю обработку краша...")
+            logging.warning("❌ Стрiм втрачено. Починаю обробку краш-файлу...")
 
-            # 🔥 Объединение и загрузка файлов в S3
+            # 🔥 Обєднання файлiв i вигрузка в S3
             if buffer_files:
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
@@ -129,7 +128,7 @@ while running:
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     temp_file = os.path.join(BUFFER_DIR, f"{timestamp}.mp4")
 
-    logging.info(f"🎥 Запись видео: {temp_file}")
+    logging.info(f"🎥 Запис вiдео: {temp_file}")
 
     command = [
         "ffmpeg", "-rtsp_transport", "tcp",
@@ -142,10 +141,10 @@ while running:
     if process.returncode == 0:
         buffer_files.append(temp_file)
 
-    # 🗑 **Удаление старых файлов из буфера, если превышен лимит**
+    # 🗑 Видалення старих файлiв якщо перевищено лiмiт
     if len(buffer_files) > MAX_BUFFER_SIZE:
         old_file = buffer_files.pop(0)
         os.remove(old_file)
-        logging.info(f"🗑 Удалён старый файл из буфера: {old_file}")
+        logging.info(f"🗑 Видалено файл з буферу: {old_file}")
 
     time.sleep(1)
