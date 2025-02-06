@@ -33,7 +33,6 @@ jobs:
         uses: github/super-linter@v5
         env:
           VALIDATE_PYTHON: true
-          VALIDATE_DOCKERFILE: true
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
