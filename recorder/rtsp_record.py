@@ -7,6 +7,7 @@ import sys
 import logging
 import boto3
 from botocore.exceptions import BotoCoreError, NoCredentialsError
+import threading
 
 # 🔧 Налаштування
 CAM_NUMBER = os.getenv("CAM_NUMBER", "1")
@@ -17,6 +18,7 @@ CRASH_DIR = f"/crashed/cam{CAM_NUMBER}"
 LOG_FILE = f"/var/log/recorder_cam{CAM_NUMBER}.log"
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 S3_UPLOAD_PATH = os.getenv("S3_UPLOAD_PATH", f"crashes/cam{CAM_NUMBER}")
+LOG_S3_PATH = os.getenv("LOG_S3_PATH", f"logs/cam{CAM_NUMBER}")
 
 DURATION = int(os.getenv("DURATION", 20))
 MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE", 5))
@@ -63,7 +65,7 @@ def is_rtsp_available():
 
 # 🛠 Функцiя злиття файлiв
 def merge_videos(files, output_file):
-    """Обєднання файлiв перед завантаженням в S3"""
+    """Об'єднання файлiв перед завантаженням в S3"""
     if len(files) == 1:
         os.rename(files[0], output_file)
         return
@@ -100,8 +102,27 @@ def upload_crash_to_s3(file_path):
         s3.upload_file(file_path, S3_BUCKET_NAME, s3_key)
         logging.info(f"🔥 Файл успiшно завантажено в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
         os.remove(file_path)  # Видаляємо файл пiсля завантаження
-    except Exception:
-        pass  # Залишаємо файл якщо не вигрузився в S3
+    except Exception as e:
+        logging.error(f"❌ Помилка завантаження у S3: {str(e)}")
+
+# 🕒 Завантаження логiв в S3 кожну годину
+def upload_logs_to_s3():
+    """Функцiя для завантаження логiв в S3"""
+    if not s3 or not S3_BUCKET_NAME:
+        return
+
+    try:
+        s3_key = f"{LOG_S3_PATH}/recorder_log_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+        s3.upload_file(LOG_FILE, S3_BUCKET_NAME, s3_key)
+        logging.info(f"🗂 Логи успiшно завантаженi в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
+    except Exception as e:
+        logging.error(f"❌ Помилка завантаження логiв в S3: {str(e)}")
+
+    # Повтор через годину
+    threading.Timer(3600, upload_logs_to_s3).start()
+
+# Запускаємо фонове завантаження логiв
+upload_logs_to_s3()
 
 # 🔄 Основний цикл запису
 while running:
@@ -109,7 +130,7 @@ while running:
         if recording_active:
             logging.warning("❌ Стрiм втрачено. Починаю обробку краш-файлу...")
 
-            # 🔥 Обєднання файлiв i вигрузка в S3
+            # 🔥 Об'єднання файлiв i вигрузка в S3
             if buffer_files:
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
