@@ -15,8 +15,6 @@ services:
       - /home/ubuntu/app/config.json:/config/config.json
     environment:
       TZ: ${TZ}
-    env_file:
-      - .env
 
   rtsp-recorder-1:
     build: ./recorder/
