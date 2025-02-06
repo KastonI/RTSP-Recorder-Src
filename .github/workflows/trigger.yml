@@ -34,7 +34,7 @@ jobs:
         env:
           VALIDATE_PYTHON: true
           DEFAULT_BRANCH: master
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN_GITHUB }}
 
       ### 🛠 **Run pre-commit hooks**
       - name: Run pre-commit hooks
