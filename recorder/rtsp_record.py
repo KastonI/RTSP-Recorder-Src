@@ -9,7 +9,7 @@ import boto3
 from botocore.exceptions import BotoCoreError, NoCredentialsError
 import threading
 
-# 🔧 Налаштування
+# 🔧 Налаштування новi
 CAM_NUMBER = os.getenv("CAM_NUMBER", "1")
 
 RTSP_URL = f"rtsp://rtsp-to-web:554/id{CAM_NUMBER}/0"
