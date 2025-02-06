@@ -7,6 +7,53 @@ on:
     types: [opened, synchronize]
 
 jobs:
+  name: Ansible-Deploy
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'ansible/**'
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Terraform-deploy"] 
+    types:
+      - completed
+    conclusions:
+      - success
+  repository_dispatch:
+    types: [push-to-src-repo]
+
+jobs:
+  lint:
+    name: Code Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      ### 🔍 **Lint Dockerfiles with hadolint**
+      - name: Run hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: "**/Dockerfile"
+
+      ### 🐍 **Lint Python files with Super-Linter**
+      - name: Run Super-Linter
+        uses: github/super-linter@v5
+        env:
+          VALIDATE_PYTHON: true
+          VALIDATE_DOCKERFILE: true
+          DEFAULT_BRANCH: master
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      ### 🛠 **Run pre-commit hooks**
+      - name: Run pre-commit hooks
+        uses: pre-commit/action@v3.0.0
+
   trigger:
     name: Trigger Ansible Deploy
     runs-on: ubuntu-latest
