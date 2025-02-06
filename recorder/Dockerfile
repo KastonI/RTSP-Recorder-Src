@@ -1,7 +1,7 @@
 # Використовуємо Alpine-образ з Python
 FROM python:3.9-alpine
 
-# Iнсталюємо FFmpeg + залежностi
+# Iнсталюємо FFmpeg + залежностi wefwe
 RUN apk add --no-cache ffmpeg py3-pip && \
     pip install --no-cache-dir boto3 && \
     rm -rf /root/.cache
