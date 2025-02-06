@@ -8,24 +8,6 @@ on:
   workflow_dispatch:
   
 jobs:
-  name: Ansible-Deploy
-on:
-  push:
-    branches:
-      - master
-    paths:
-      - 'ansible/**'
-  workflow_dispatch:
-  workflow_run:
-    workflows: ["Terraform-deploy"] 
-    types:
-      - completed
-    conclusions:
-      - success
-  repository_dispatch:
-    types: [push-to-src-repo]
-
-jobs:
   lint:
     name: Code Linting
     runs-on: ubuntu-latest
