@@ -18,18 +18,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run Hadolint on all Dockerfiles
-        uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: "**/Dockerfile"  # Проверяет все файлы с именем "Dockerfile"
-          format: "tty"
-
-
       ### 🐍 **Lint Python files with Super-Linter**
       - name: Run Super-Linter
         uses: github/super-linter@v5
         env:
           VALIDATE_PYTHON: true
+          VALIDATE_DOCKERFILE: true
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN_GITHUB }}
 
