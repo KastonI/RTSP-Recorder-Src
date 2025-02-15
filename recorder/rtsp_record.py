@@ -20,7 +20,7 @@ S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 S3_UPLOAD_PATH = f"crashes/cam{CAM_NUMBER}"
 LOG_S3_PATH = f"logs/cam{CAM_NUMBER}"
 
-DURATION = int(os.getenv("DURATION")) #, 20
+RECORD_DURATION = int(os.getenv("RECORD_DURATION")) #, 20
 MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE")) #, 5
 CHECK_INTERVAL = 10
 
@@ -153,7 +153,7 @@ while running:
 
     command = [
         "ffmpeg", "-rtsp_transport", "tcp",
-        "-i", RTSP_URL, "-t", str(DURATION),
+        "-i", RTSP_URL, "-t", str(RECORD_DURATION),
         "-c", "copy", temp_file
     ]
 
