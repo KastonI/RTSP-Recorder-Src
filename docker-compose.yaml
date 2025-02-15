@@ -28,8 +28,8 @@ services:
       AWS_REGION: ${AWS_REGION}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
       CAM_NUMBER: "1"
-      DURATION: $(DURATION)
-      MAX_BUFFER_SIZE: $(MAX_BUFFER_SIZE)
+      DURATION: ${DURATION}
+      MAX_BUFFER_SIZE: ${MAX_BUFFER_SIZE}
     command: ["python3", "rtsp_record.py"]
 
   rtsp-recorder-2:
@@ -44,6 +44,8 @@ services:
       AWS_REGION: ${AWS_REGION}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
       CAM_NUMBER: "2"
+      DURATION: ${DURATION}
+      MAX_BUFFER_SIZE: ${MAX_BUFFER_SIZE}
     command: ["python3", "rtsp_record.py"]
 
 networks:
