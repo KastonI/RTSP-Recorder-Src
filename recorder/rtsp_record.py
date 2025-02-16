@@ -9,27 +9,26 @@ import boto3
 from botocore.exceptions import BotoCoreError, NoCredentialsError
 import threading
 
-# 🔧 Налаштування новi
+# Configuration
 CAM_NUMBER = os.getenv("CAM_NUMBER", "1")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+RECORD_DURATION = int(os.getenv("RECORD_DURATION", 20))
+MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE", 5))
 
 RTSP_URL = f"rtsp://rtsp-to-web:554/id{CAM_NUMBER}/0"
 BUFFER_DIR = f"/buffer/cam{CAM_NUMBER}"
 CRASH_DIR = f"/crashed/cam{CAM_NUMBER}"
 LOG_FILE = f"/var/log/recorder_cam{CAM_NUMBER}.log"
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 S3_UPLOAD_PATH = f"crashes/cam{CAM_NUMBER}"
 LOG_S3_PATH = f"logs/cam{CAM_NUMBER}"
 
-RECORD_DURATION = int(os.getenv("RECORD_DURATION")) #, 20
-MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE")) #, 5
 CHECK_INTERVAL = 10
 
-# 📂 Створюємо необхiднi теки
+# Creating necessary directories
 os.makedirs(BUFFER_DIR, exist_ok=True)
 os.makedirs(CRASH_DIR, exist_ok=True)
-os.makedirs("/var/log", exist_ok=True)
 
-# 📜 Логування
+# Logging configuration
 logging.basicConfig(
     level=logging.INFO,
     format=f"[%(asctime)s] [%(levelname)s] [CAM-{CAM_NUMBER}] %(message)s",
@@ -40,22 +39,22 @@ logging.basicConfig(
     force=True
 )
 
-logging.info(f"🎥 Камера {CAM_NUMBER} працює з RTSP: {RTSP_URL}")
+logging.info(f"🎥 Camera {CAM_NUMBER} is running with RTSP: {RTSP_URL}")
 
-# 🔍 Налаштування AWS S3
+# AWS S3 Configuration
 try:
     session = boto3.Session()
     s3 = session.client("s3")
 except (BotoCoreError, NoCredentialsError):
-    s3 = None  # Вимикаємо S3 якщо не можемо пiдключитись
+    s3 = None  # Disable S3 if connection fails
 
 running = True
 recording_active = True
 buffer_files = []
 
-# 🔄 Перевiрка потоку
+#  RTSP Stream Check
 def is_rtsp_available():
-    """Перевiрка чи є доступ до потоку"""
+    """Check if the RTSP stream is available"""
     test_command = [
         "ffmpeg", "-rtsp_transport", "tcp", "-i", RTSP_URL,
         "-t", "1", "-c", "copy", "-f", "null", "-"
@@ -63,9 +62,9 @@ def is_rtsp_available():
     result = subprocess.run(test_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result.returncode == 0
 
-# 🛠 Функцiя злиття файлiв
+# Video Merging Function
 def merge_videos(files, output_file):
-    """Об'єднання файлiв перед завантаженням в S3"""
+    """Merge video files before uploading to S3"""
     if len(files) == 1:
         os.rename(files[0], output_file)
         return
@@ -85,11 +84,11 @@ def merge_videos(files, output_file):
 
     if result.returncode == 0:
         for file in files:
-            os.remove(file)  # Видаляємо буфернi файли пiсля злиття
+            os.remove(file)  # Remove buffer files after merging
 
-# 🛠 Вигрузка файлiв в S3
+# Upload Crash Files to S3
 def upload_crash_to_s3(file_path):
-    """Завантажуємо краш-файл в S3 i видаляємо файли"""
+    """Upload crash file to S3 and delete after upload"""
     if not s3 or not S3_BUCKET_NAME:
         return
 
@@ -100,37 +99,37 @@ def upload_crash_to_s3(file_path):
 
     try:
         s3.upload_file(file_path, S3_BUCKET_NAME, s3_key)
-        logging.info(f"🔥 Файл успiшно завантажено в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
-        os.remove(file_path)  # Видаляємо файл пiсля завантаження
+        logging.info(f"🔥 File successfully uploaded to S3: s3://{S3_BUCKET_NAME}/{s3_key}")
+        os.remove(file_path) # Remove file after upload
     except Exception as e:
-        logging.error(f"❌ Помилка завантаження у S3: {str(e)}")
+        logging.error(f"❌ S3 upload error: {str(e)}")
 
-# 🕒 Завантаження логiв в S3 кожну годину
+# Upload logs to S3 every hour
 def upload_logs_to_s3():
-    """Функцiя для завантаження логiв в S3"""
+    """Function to upload logs to S3"""
     if not s3 or not S3_BUCKET_NAME:
         return
 
     try:
         s3_key = f"{LOG_S3_PATH}/recorder_log_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
         s3.upload_file(LOG_FILE, S3_BUCKET_NAME, s3_key)
-        logging.info(f"🗂 Логи успiшно завантаженi в S3: s3://{S3_BUCKET_NAME}/{s3_key}")
+        logging.info(f"🗂 Logs successfully uploaded to S3: s3://{S3_BUCKET_NAME}/{s3_key}")
     except Exception as e:
-        logging.error(f"❌ Помилка завантаження логiв в S3: {str(e)}")
+        logging.error(f"❌ Log upload error to S3: {str(e)}")
 
-    # Повтор через годину
+    # Repeat after an hour
     threading.Timer(3600, upload_logs_to_s3).start()
 
-# Запускаємо фонове завантаження логiв
+# Start background log upload process
 upload_logs_to_s3()
 
-# 🔄 Основний цикл запису
+# Main Recording Loop
 while running:
     if not is_rtsp_available():
         if recording_active:
-            logging.warning("❌ Стрiм втрачено. Починаю обробку краш-файлу...")
+            logging.warning("❌ Stream lost. Processing crash file...")
 
-            # 🔥 Об'єднання файлiв i вигрузка в S3
+            # Merge files and upload to S3
             if buffer_files:
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 merged_file = os.path.join(CRASH_DIR, f"crash_{timestamp}.mp4")
@@ -149,7 +148,7 @@ while running:
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     temp_file = os.path.join(BUFFER_DIR, f"{timestamp}.mp4")
 
-    logging.info(f"🎥 Запис вiдео: {temp_file}")
+    logging.info(f"🎥 Recording video: {temp_file}")
 
     command = [
         "ffmpeg", "-rtsp_transport", "tcp",
@@ -162,10 +161,10 @@ while running:
     if process.returncode == 0:
         buffer_files.append(temp_file)
 
-    # 🗑 Видалення старих файлiв якщо перевищено лiмiт
+    # Delete old files if buffer limit is exceeded
     if len(buffer_files) > MAX_BUFFER_SIZE:
         old_file = buffer_files.pop(0)
         os.remove(old_file)
-        logging.info(f"🗑 Видалено файл з буферу: {old_file}")
+        logging.info(f"🗑 Removed buffer file: {old_file}")
 
     time.sleep(1)

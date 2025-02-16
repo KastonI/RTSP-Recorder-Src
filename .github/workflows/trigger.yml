@@ -3,7 +3,7 @@ name: Trigger-Deploy
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      ### 🐍 Lint Python files with Super-Linter
+      # Lint Python files and Dockerfile
       - name: Run Super-Linter
         uses: github/super-linter@v5
         env:

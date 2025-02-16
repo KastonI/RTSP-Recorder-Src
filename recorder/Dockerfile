@@ -1,23 +1,24 @@
-# Використовуємо Alpine-образ з Python
 FROM python:3.9-alpine
 
-# Iнсталюємо FFmpeg + залежностi wefwe
+# Install FFmpeg + dependencies
 RUN apk add --no-cache ffmpeg py3-pip && \
     pip install --no-cache-dir boto3 && \
     rm -rf /root/.cache
 
+# Create log directory
 RUN mkdir -p /var/log
 
-# Робоча директорiя
+# Set working directory
 WORKDIR /app
 
-# Копiюємо скрипт
+# Copy script
 COPY rtsp_record.py .
 
-# Права на використання
+# Set permissions
 RUN chmod +x rtsp_record.py
 
-# Вiдкриваємо порт для RTSP потоку
+# Expose the port for the RTSP stream
 EXPOSE 554
 
+# Run rtsp_record.py
 CMD ["python3", "rtsp_record.py"]
