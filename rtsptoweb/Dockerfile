@@ -1,30 +1,27 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=${BUILDPLATFORM} golang:1.19-alpine3.15 AS builder
+FROM golang:1.22-alpine3.20 AS builder
 
-RUN apk add git
+RUN apk add --no-cache git gcc musl-dev
 
 WORKDIR /go/src/app
 COPY . .
 
-ARG TARGETOS TARGETARCH TARGETVARIANT
+ENV CGO_ENABLED=0 GO111MODULE=on
 
-ENV CGO_ENABLED=0
-RUN go get \
-    && go mod download \
-    && go build -a -o rtsp-to-web
+RUN go mod tidy && go mod download
 
+RUN go build -o rtsp-to-web .
+
+# --- Runtime Stage ---
 FROM alpine:3.21
 
 WORKDIR /app
 
 COPY --from=builder /go/src/app/rtsp-to-web /app/
 COPY --from=builder /go/src/app/web /app/web
+COPY --from=builder /go/src/app/config.json /config/config.json
 
-RUN mkdir -p /config
-COPY --from=builder /go/src/app/config.json /config
-
-ENV GO111MODULE="on"
 ENV GIN_MODE="release"
 
-CMD ["./rtsp-to-web", "--config=/config/config.json"]
+CMD ["/app/rtsp-to-web", "--config=/config/config.json"]
