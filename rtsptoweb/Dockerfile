@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.22-alpine3.20 AS builder
+FROM --platform=${BUILDPLATFORM} golang:1.19-alpine3.15 AS builder
 
-RUN apk add --no-cache git
+RUN apk add git
 
 WORKDIR /go/src/app
 COPY . .
@@ -10,8 +10,7 @@ COPY . .
 ARG TARGETOS TARGETARCH TARGETVARIANT
 
 ENV CGO_ENABLED=0
-
-RUN go get -u golang.org/x/crypto \
+RUN go get \
     && go mod download \
     && go build -a -o rtsp-to-web
 
