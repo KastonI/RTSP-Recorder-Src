@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      # Lint Python files and Dockerfile
+      # Lint Python files and Dockerfiles
       - name: Run Super-Linter
         uses: github/super-linter@v5
         env:
