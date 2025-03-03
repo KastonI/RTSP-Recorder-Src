@@ -26,7 +26,6 @@ jobs:
           VALIDATE_PYTHON: true
           VALIDATE_DOCKERFILE: true
           VALIDATE_ALL_CODEBASE: false
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   trigger:
     name: Trigger Ansible Deploy

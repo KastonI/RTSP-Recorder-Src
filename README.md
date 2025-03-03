@@ -29,6 +29,8 @@
 
 ## **🚀 Installation and Running**  
 
+For local execution, follow the instructions below. To deploy to the cloud, visit the repository at [Final Project Config](https://github.com/KastonI/final-project-cfg).
+
 ### **📥 Clone the Repository**  
 
 ```bash
