@@ -38,5 +38,5 @@ jobs:
         run: |
           curl -X POST -H "Accept: application/vnd.github.everest-preview+json" \
                -H "Authorization: token ${{ secrets.PAT_TOKEN_GITHUB }}" \
-               https://api.github.com/repos/KastonI/final-project-cfg/dispatches \
+               https://api.github.com/repos/KastonI/RTSP-Recorder-to-Cloud/dispatches \
                -d '{"event_type": "push-to-src-repo"}'
