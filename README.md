@@ -1,6 +1,6 @@
 # **🎬 RTSP Video Recorder & Web Streaming 🎬**  
 
-> This repository contains the source code for the final **DevOps Engineer** project. The full configuration is stored in a separate repository: [Final Project Config](https://github.com/KastonI/final-project-cfg).
+> This repository contains the source code for the final **DevOps Engineer** project. The full configuration is stored in a separate repository: [RTSP Recorder to Cloud](https://github.com/KastonI/final-project-cfg).
 
 ---
 
@@ -29,13 +29,13 @@
 
 ## **🚀 Installation and Running**  
 
-For local execution, follow the instructions below. To deploy to the cloud, visit the repository at [Final Project Config](https://github.com/KastonI/final-project-cfg).
+For local execution, follow the instructions below. To deploy to the cloud, visit the repository at [RTSP Recorder to Cloud](https://github.com/KastonI/final-project-cfg).
 
 ### **📥 Clone the Repository**  
 
 ```bash
-git clone https://github.com/KastonI/final-project-cfg.git
-cd final-project-cfg
+git clone https://github.com/KastonI/final-project-src.git
+cd final-project-src
 ```
 
 ---
@@ -126,4 +126,4 @@ This project is distributed under the **MIT License**.
 
 > **Authors:**  
 > - 📌 **RTSPtoWeb** – [Deepch](https://github.com/deepch)  
-> - 📌 **RTSP Recorder** – Developed as part of the `final-project-cfg` project.  
+> - 📌 **RTSP Recorder** – Developed as part of the `RTSP Recorder to Cloud` project.  
